@@ -15,6 +15,7 @@ import (
 	"github.com/mailgun/kafka-pixy/offsetmgr"
 	"github.com/mailgun/kafka-pixy/proxy"
 	"github.com/pkg/errors"
+	"github.com/saggymac/kafka-pixy/entitlements"
 	"github.com/samuel/go-zookeeper/zk"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -141,6 +142,11 @@ func (s *T) ConsumeNAck(ctx context.Context, req *pb.ConsNAckRq) (*pb.ConsRs, er
 		}
 	}
 
+	// TODO: We could entitle the request prior to making the call to kafka
+	if !entitlements.preFilter() {
+		// TODO: return a prefilter error / explanation
+	}
+
 	consMsg, err := pxy.Consume(req.Group, req.Topic, ack)
 	if err != nil {
 		switch err {
@@ -174,6 +180,13 @@ func (s *T) ConsumeNAck(ctx context.Context, req *pb.ConsNAckRq) (*pb.ConsRs, er
 	} else {
 		res.KeyValue = consMsg.Key
 	}
+
+	// TODO: and we could entitle the actual kafka message based on the data contained within
+	if !entitlements.postFilter() {
+		// TODO: so in this case ... we want to go back arond the loop and consume again, since
+		// this consume didn't actually work.
+	}
+
 	return &res, nil
 }
 
